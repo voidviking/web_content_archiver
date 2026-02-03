@@ -46,6 +46,9 @@ gem "connection_pool", "~> 2.4"
 # Distributed locking
 gem "redlock", "~> 1.3"
 
+# AWS SDK for S3 storage (optional)
+gem "aws-sdk-s3", "~> 1.143", require: false
+
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 # gem "rack-cors"
 

@@ -17,8 +17,11 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 
 # Use the database-backed adapters for Rails.cache, Active Job, and Action Cable
 gem "solid_cache"
-gem "solid_queue"
 gem "solid_cable"
+
+# Background job processing with Sidekiq
+gem "sidekiq", "~> 7.0"
+gem "redis", "~> 5.0"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
@@ -31,6 +34,17 @@ gem "thruster", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
+
+# HTTP client and parsing
+gem "httparty", "~> 0.21"
+gem "addressable", "~> 2.8"
+
+# Concurrency and threading
+gem "concurrent-ruby", "~> 1.2"
+gem "connection_pool", "~> 2.4"
+
+# Distributed locking
+gem "redlock", "~> 1.3"
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 # gem "rack-cors"
@@ -47,4 +61,14 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  # Testing framework
+  gem "rspec-rails", "~> 6.1"
+  gem "factory_bot_rails", "~> 6.4"
+  gem "faker", "~> 3.2"
+  gem "shoulda-matchers", "~> 6.0"
+  
+  # HTTP mocking
+  gem "webmock", "~> 3.19"
+  gem "vcr", "~> 6.2"
 end

@@ -70,7 +70,7 @@ group :development, :test do
   gem "factory_bot_rails", "~> 6.4"
   gem "faker", "~> 3.2"
   gem "shoulda-matchers", "~> 6.0"
-  
+
   # HTTP mocking
   gem "webmock", "~> 3.19"
   gem "vcr", "~> 6.2"

@@ -23,21 +23,25 @@ class HtmlFetcher
   # Raised when the resource returns 404
   class NotFoundError < FetchError; end
 
-  def initialize(timeout: DEFAULT_TIMEOUT)
+  def self.call(url, timeout: DEFAULT_TIMEOUT)
+    new(url, timeout: timeout).call
+  end
+
+  def initialize(url, timeout: DEFAULT_TIMEOUT)
+    @url = url
     @timeout = timeout
   end
 
   # Fetches an HTML page, following redirects, with retry on transient failures.
   #
-  # @param url [String] the URL to fetch
   # @return [Hash] with keys :body, :content_type, :final_url
   # @raise [HtmlFetcher::TimeoutError] if the request times out
   # @raise [HtmlFetcher::NotFoundError] if the server returns 404
   # @raise [HtmlFetcher::FetchError] for other non-successful responses
-  def fetch(url)
+  def call
     with_retry do
       response = HTTParty.get(
-        url,
+        @url,
         headers: { "User-Agent" => USER_AGENT },
         follow_redirects: true,
         no_follow: false,
@@ -45,10 +49,10 @@ class HtmlFetcher
         max_retries: 0
       )
 
-      handle_response(response, url)
+      handle_response(response, @url)
     end
   rescue Net::OpenTimeout, Net::ReadTimeout
-    raise TimeoutError.new("Request timed out fetching: #{url}")
+    raise TimeoutError.new("Request timed out fetching: #{@url}")
   end
 
   private

@@ -3,12 +3,10 @@
 require "rails_helper"
 
 RSpec.describe ResourceFetcher do
-  subject(:fetcher) { described_class.new }
-
   let(:url) { "https://example.com/assets/style.css" }
   let(:css_body) { "body { margin: 0; padding: 0; }" }
 
-  describe "#fetch" do
+  describe ".call" do
     context "with a successful response" do
       before do
         stub_request(:get, url)
@@ -20,22 +18,22 @@ RSpec.describe ResourceFetcher do
       end
 
       it "returns the response body" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result[:body]).to eq(css_body)
       end
 
       it "returns the content type without charset" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result[:content_type]).to eq("text/css")
       end
 
       it "returns the byte size of the body" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result[:size]).to eq(css_body.bytesize)
       end
 
       it "sends the correct User-Agent header" do
-        fetcher.fetch(url)
+        described_class.call(url)
 
         expect(WebMock).to have_requested(:get, url)
           .with(headers: { "User-Agent" => ResourceFetcher::USER_AGENT })
@@ -56,12 +54,12 @@ RSpec.describe ResourceFetcher do
       end
 
       it "returns binary content correctly" do
-        result = fetcher.fetch(image_url)
+        result = described_class.call(image_url)
         expect(result[:body].encoding).to eq(Encoding::BINARY)
       end
 
       it "returns correct content type for images" do
-        result = fetcher.fetch(image_url)
+        result = described_class.call(image_url)
         expect(result[:content_type]).to eq("image/png")
       end
     end
@@ -72,19 +70,21 @@ RSpec.describe ResourceFetcher do
       end
 
       it "returns nil instead of raising" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result).to be_nil
       end
     end
 
     context "with a 500 response" do
+      subject(:fetcher) { described_class.new(url) }
+
       before do
         stub_request(:get, url).to_return(status: 500)
       end
 
       it "returns nil after exhausting retries" do
         allow(fetcher).to receive(:sleep)
-        result = fetcher.fetch(url)
+        result = fetcher.call
         expect(result).to be_nil
       end
     end
@@ -95,31 +95,33 @@ RSpec.describe ResourceFetcher do
       end
 
       it "returns nil instead of raising" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result).to be_nil
       end
 
       it "logs a warning" do
         expect(Rails.logger).to receive(:warn).with(/failed to fetch/)
-        fetcher.fetch(url)
+        described_class.call(url)
       end
     end
 
     context "with a connection error" do
+      subject(:fetcher) { described_class.new(url) }
+
       before do
         stub_request(:get, url).to_raise(Errno::ECONNREFUSED)
       end
 
       it "returns nil instead of raising" do
         allow(fetcher).to receive(:sleep)
-        result = fetcher.fetch(url)
+        result = fetcher.call
         expect(result).to be_nil
       end
 
       it "logs a warning with the error class" do
         allow(fetcher).to receive(:sleep)
         expect(Rails.logger).to receive(:warn).with(/Errno::ECONNREFUSED/)
-        fetcher.fetch(url)
+        fetcher.call
       end
     end
   end

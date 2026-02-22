@@ -3,12 +3,10 @@
 require "rails_helper"
 
 RSpec.describe HtmlFetcher do
-  subject(:fetcher) { described_class.new }
-
   let(:url) { "https://example.com/page" }
   let(:html_body) { "<html><body><h1>Hello</h1></body></html>" }
 
-  describe "#fetch" do
+  describe ".call" do
     context "with a successful response" do
       before do
         stub_request(:get, url)
@@ -20,22 +18,22 @@ RSpec.describe HtmlFetcher do
       end
 
       it "returns the response body" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result[:body]).to eq(html_body)
       end
 
       it "returns the content type without charset" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result[:content_type]).to eq("text/html")
       end
 
       it "returns the final URL after any redirects" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result[:final_url]).to eq(url)
       end
 
       it "sends the correct User-Agent header" do
-        fetcher.fetch(url)
+        described_class.call(url)
 
         expect(WebMock).to have_requested(:get, url)
           .with(headers: { "User-Agent" => HtmlFetcher::USER_AGENT })
@@ -57,12 +55,12 @@ RSpec.describe HtmlFetcher do
       end
 
       it "follows the redirect and returns body" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result[:body]).to eq(html_body)
       end
 
       it "returns the final URL after redirect" do
-        result = fetcher.fetch(url)
+        result = described_class.call(url)
         expect(result[:final_url]).to eq(redirect_url)
       end
     end
@@ -73,27 +71,29 @@ RSpec.describe HtmlFetcher do
       end
 
       it "raises NotFoundError" do
-        expect { fetcher.fetch(url) }.to raise_error(HtmlFetcher::NotFoundError)
+        expect { described_class.call(url) }.to raise_error(HtmlFetcher::NotFoundError)
       end
 
       it "includes the URL in the error message" do
-        expect { fetcher.fetch(url) }.to raise_error(HtmlFetcher::NotFoundError, /#{Regexp.escape(url)}/)
+        expect { described_class.call(url) }.to raise_error(HtmlFetcher::NotFoundError, /#{Regexp.escape(url)}/)
       end
     end
 
     context "with a 500 response" do
+      subject(:fetcher) { described_class.new(url) }
+
       before do
         stub_request(:get, url).to_return(status: 500)
       end
 
       it "raises FetchError" do
         allow(fetcher).to receive(:sleep)
-        expect { fetcher.fetch(url) }.to raise_error(HtmlFetcher::FetchError)
+        expect { fetcher.call }.to raise_error(HtmlFetcher::FetchError)
       end
 
       it "includes the status code in the error message" do
         allow(fetcher).to receive(:sleep)
-        expect { fetcher.fetch(url) }.to raise_error(HtmlFetcher::FetchError, /500/)
+        expect { fetcher.call }.to raise_error(HtmlFetcher::FetchError, /500/)
       end
     end
 
@@ -103,20 +103,19 @@ RSpec.describe HtmlFetcher do
       end
 
       it "raises TimeoutError" do
-        expect { fetcher.fetch(url) }.to raise_error(HtmlFetcher::TimeoutError)
+        expect { described_class.call(url) }.to raise_error(HtmlFetcher::TimeoutError)
       end
 
       it "includes the URL in the error message" do
-        expect { fetcher.fetch(url) }.to raise_error(HtmlFetcher::TimeoutError, /#{Regexp.escape(url)}/)
+        expect { described_class.call(url) }.to raise_error(HtmlFetcher::TimeoutError, /#{Regexp.escape(url)}/)
       end
     end
 
     context "with custom timeout" do
       it "respects the configured timeout" do
-        fetcher_with_timeout = described_class.new(timeout: 5)
         stub_request(:get, url).to_return(status: 200, body: html_body)
 
-        expect { fetcher_with_timeout.fetch(url) }.not_to raise_error
+        expect { described_class.call(url, timeout: 5) }.not_to raise_error
       end
     end
   end

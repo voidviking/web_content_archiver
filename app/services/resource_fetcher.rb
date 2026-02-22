@@ -6,7 +6,12 @@ class ResourceFetcher
   USER_AGENT = "WebContentArchiver/1.0 (+https://github.com/storylane/web-content-archiver)"
   DEFAULT_TIMEOUT = 15
 
-  def initialize(timeout: DEFAULT_TIMEOUT)
+  def self.call(url, timeout: DEFAULT_TIMEOUT)
+    new(url, timeout: timeout).call
+  end
+
+  def initialize(url, timeout: DEFAULT_TIMEOUT)
+    @url = url
     @timeout = timeout
   end
 
@@ -14,12 +19,11 @@ class ResourceFetcher
   # Unlike HtmlFetcher, this returns nil on failure rather than raising,
   # so a single broken asset does not abort the entire archive process.
   #
-  # @param url [String] the asset URL to fetch
   # @return [Hash, nil] with keys :body, :content_type, :size, or nil on failure
-  def fetch(url)
+  def call
     with_retry do
       response = HTTParty.get(
-        url,
+        @url,
         headers: { "User-Agent" => USER_AGENT },
         follow_redirects: true,
         timeout: @timeout,
@@ -36,7 +40,7 @@ class ResourceFetcher
       }
     end
   rescue => e
-    Rails.logger.warn("ResourceFetcher: failed to fetch #{url} — #{e.class}: #{e.message}")
+    Rails.logger.warn("ResourceFetcher: failed to fetch #{@url} — #{e.class}: #{e.message}")
     nil
   end
 

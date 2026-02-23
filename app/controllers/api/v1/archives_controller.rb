@@ -4,19 +4,25 @@ module Api
   module V1
     class ArchivesController < BaseController
       # POST /api/v1/archives
+      #
+      # Wrapped in a distributed lock so that concurrent requests for the same
+      # URL are serialised: only one creates the record; the rest find it.
       def create
-        existing = Archive.find_by(url: normalized_url)
-        return render json: archive_json(existing), status: :ok if existing
+        lock_result = DistributedLock.acquire("archive:#{normalized_url}") do
+          existing = Archive.find_by(url: normalized_url)
+          return render json: archive_json(existing), status: :ok if existing
 
-        archive = Archive.new(url: params[:url], status: :pending)
+          archive = Archive.new(url: params[:url], status: :pending)
 
-        if archive.save
-          # Job will be enqueued here in Commit 10 (after distributed locking is added)
-          # ArchiveJob.perform_async(archive.id)
-          render json: archive_json(archive), status: :created
-        else
-          render json: { errors: archive.errors.full_messages }, status: :unprocessable_content
+          if archive.save
+            ArchiveProcessorJob.perform_later(archive.id)
+            render json: archive_json(archive), status: :created
+          else
+            render json: { errors: archive.errors.full_messages }, status: :unprocessable_content
+          end
         end
+
+        render json: { error: "Unable to process request. Please retry." }, status: :service_unavailable unless lock_result
       end
 
       # GET /api/v1/archives/:id

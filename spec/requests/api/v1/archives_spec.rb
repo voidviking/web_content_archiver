@@ -6,6 +6,11 @@ RSpec.describe "Api::V1::Archives", type: :request do
   let(:valid_url) { "https://example.com/page" }
   let(:json_response) { JSON.parse(response.body) }
 
+  # Stub the distributed lock for all request specs so tests never need Redis.
+  before do
+    allow(DistributedLock).to receive(:acquire).and_yield
+  end
+
   describe "POST /api/v1/archives" do
     context "with a valid URL" do
       it "returns 201 Created" do
@@ -86,6 +91,30 @@ RSpec.describe "Api::V1::Archives", type: :request do
         post "/api/v1/archives", params: {}
 
         expect(json_response["errors"]).to be_present
+      end
+    end
+
+    context "when the distributed lock cannot be acquired" do
+      before do
+        allow(DistributedLock).to receive(:acquire).and_return(nil)
+      end
+
+      it "returns 503 Service Unavailable" do
+        post "/api/v1/archives", params: { url: valid_url }
+
+        expect(response).to have_http_status(:service_unavailable)
+      end
+
+      it "returns an error message" do
+        post "/api/v1/archives", params: { url: valid_url }
+
+        expect(json_response["error"]).to match(/retry/i)
+      end
+
+      it "does not create an archive record" do
+        expect {
+          post "/api/v1/archives", params: { url: valid_url }
+        }.not_to change(Archive, :count)
       end
     end
 

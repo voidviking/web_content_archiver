@@ -26,6 +26,7 @@ RSpec.describe ArchiveProcessorJob, type: :job do
     )
     allow(ResourceExtractor).to receive(:call).with(html_body, base_url: archive.url).and_return(extracted_resources)
     allow(ParallelResourceFetcher).to receive(:call).with(extracted_resources).and_return(fetched_resources)
+    allow(IframeProcessor).to receive(:call).with(html_body, hash_including(base_url: archive.url)).and_return(html_body)
     allow(UrlRewriter).to receive(:call).with(html_body, instance_of(Hash)).and_return(rewritten_html)
 
     allow(Storage::AdapterFactory).to receive(:build).and_return(storage)
@@ -93,6 +94,11 @@ RSpec.describe ArchiveProcessorJob, type: :job do
           )
         )
       end
+
+      it "increments resources_count once per successfully uploaded asset" do
+        expect { job.perform(archive.id) }
+          .to change { archive.reload.resources_count }.by(fetched_resources.size)
+      end
     end
 
     context "when the archive is already completed" do
@@ -127,6 +133,11 @@ RSpec.describe ArchiveProcessorJob, type: :job do
 
       it "only creates Resource records for successful fetches" do
         expect { job.perform(archive.id) }.to change(Resource, :count).by(1)
+      end
+
+      it "only increments resources_count for successful fetches" do
+        job.perform(archive.id)
+        expect(archive.reload.resources_count).to eq(1)
       end
 
       it "still completes the archive" do

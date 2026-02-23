@@ -6,8 +6,9 @@
 #   2. Extract all external resource URLs (CSS, JS, images, fonts)
 #   3. Fetch all resources in parallel (rate-limited per domain)
 #   4. Upload each asset to storage and create Resource records
-#   5. Rewrite the HTML so every asset URL points to its storage location
-#   6. Persist the rewritten HTML and mark the archive completed
+#   5. Process iframes recursively (fetch, upload assets, inline as srcdoc)
+#   6. Rewrite the HTML so every asset URL points to its storage location
+#   7. Persist the rewritten HTML and mark the archive completed
 #
 # On any failure the archive is marked :failed with an error_message and the
 # exception is re-raised so Sidekiq can apply its retry policy.
@@ -51,6 +52,10 @@ class ArchiveProcessorJob < ApplicationJob
 
     mapping = upload_assets(fetched_resources)
 
+    # Process iframes recursively: fetch each iframe's HTML, upload its assets,
+    # and inline the result as srcdoc so the archive is fully self-contained.
+    html = IframeProcessor.call(html, base_url: base_url, storage: storage, archive: @archive)
+
     rewritten_html = UrlRewriter.call(html, mapping)
 
     # Atomic completion: only the one worker whose WHERE matches (status still
@@ -83,6 +88,10 @@ class ArchiveProcessorJob < ApplicationJob
         content_type:  item[:result][:content_type],
         file_size:     item[:result][:size]
       )
+
+      # Atomic increment: issues a single UPDATE … SET resources_count = resources_count + 1
+      # so concurrent threads or workers never lose a count update.
+      Archive.increment_counter(:resources_count, @archive.id)
 
       mapping[item[:url]] = storage_url
     end

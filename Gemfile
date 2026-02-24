@@ -41,7 +41,7 @@ gem "addressable", "~> 2.8"
 
 # Concurrency and threading
 gem "concurrent-ruby", "~> 1.2"
-gem "connection_pool", "~> 2.4"
+gem "connection_pool", "~> 3.0"
 
 # Distributed locking
 gem "redlock", "~> 1.3"

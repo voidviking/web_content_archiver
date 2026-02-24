@@ -44,7 +44,7 @@ gem "concurrent-ruby", "~> 1.2"
 gem "connection_pool", "~> 2.4"
 
 # Distributed locking
-gem "redlock", "~> 1.3"
+gem "redlock", "~> 2.1"
 
 # AWS SDK for S3 storage (optional)
 gem "aws-sdk-s3", "~> 1.143", require: false
